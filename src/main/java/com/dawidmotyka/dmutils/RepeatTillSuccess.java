@@ -10,7 +10,11 @@ public class RepeatTillSuccess {
     public interface OnErrorListener {
         public void onError(Exception t);
     }
-    public static void planTask(RunnableWithException task, OnErrorListener onErrorListener, int intervalMs, int maxRetries) {
+    public interface TaskFailedListener {
+        public void taskFailed();
+    }
+
+    public static void planTask(RunnableWithException task, OnErrorListener onErrorListener, int intervalMs, int maxRetries, TaskFailedListener taskFailedListener) {
         boolean success = false;
         boolean limitedRetries=true;
         if(maxRetries==0)
@@ -29,9 +33,14 @@ public class RepeatTillSuccess {
                 }
                 maxRetries--;
                 if(limitedRetries && maxRetries<=0)
+                    taskFailedListener.taskFailed();
                     success=true;
             }
         }
+    }
+
+    public static void planTask(RunnableWithException task, OnErrorListener onErrorListener, int intervalMs, int maxRetries) {
+        planTask(task, onErrorListener, intervalMs, maxRetries, ()->{});
     }
 
     public static void planTask(RunnableWithException task, OnErrorListener onErrorListener, int intervalMs) {
