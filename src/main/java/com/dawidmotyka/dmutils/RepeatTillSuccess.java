@@ -22,19 +22,19 @@ public class RepeatTillSuccess {
         while(success==false) {
             try {
                 task.run();
-                success=true;
+                break;
             } catch (Exception e) {
                 onErrorListener.onError(e);
-            } finally {
-                try {
-                    Thread.sleep(intervalMs);
-                } catch (InterruptedException e) {
-                    onErrorListener.onError(e);
-                }
-                maxRetries--;
-                if(limitedRetries && maxRetries<=0)
-                    taskFailedListener.taskFailed();
-                    success=true;
+            }
+            try {
+                Thread.sleep(intervalMs);
+            } catch (InterruptedException e) {
+                onErrorListener.onError(e);
+            }
+            maxRetries--;
+            if(limitedRetries && maxRetries<=0) {
+                taskFailedListener.taskFailed();
+                break;
             }
         }
     }
