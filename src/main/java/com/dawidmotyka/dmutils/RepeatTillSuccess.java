@@ -30,6 +30,7 @@ public class RepeatTillSuccess {
                 Thread.sleep(intervalMs);
             } catch (InterruptedException e) {
                 onErrorListener.onError(e);
+                break;
             }
             maxRetries--;
             if(limitedRetries && maxRetries<=0) {
