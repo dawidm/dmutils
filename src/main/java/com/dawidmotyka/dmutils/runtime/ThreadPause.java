@@ -1,4 +1,4 @@
-package com.dawidmotyka.dmutils;
+package com.dawidmotyka.dmutils.runtime;
 
 import java.util.logging.Logger;
 

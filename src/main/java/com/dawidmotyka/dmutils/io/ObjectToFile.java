@@ -1,4 +1,4 @@
-package com.dawidmotyka.dmutils;
+package com.dawidmotyka.dmutils.io;
 
 import java.io.*;
 import java.util.logging.Level;

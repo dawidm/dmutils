@@ -1,4 +1,4 @@
-package com.dawidmotyka.dmutils;
+package com.dawidmotyka.dmutils.runtime;
 
 /**
  * Created by dawid on 10/21/17.
