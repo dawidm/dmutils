@@ -10,51 +10,65 @@
 
 package com.dawidmotyka.dmutils.runtime;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+
 /**
  * Created by dawid on 10/21/17.
  */
 public class RepeatTillSuccess {
+    
     public interface RunnableWithException {
         public void run() throws Exception;
     }
     public interface OnErrorListener {
         public void onError(Exception t);
     }
+    public interface OnDoneListener {
+        public void onDone();
+    }
     public interface TaskFailedListener {
         public void taskFailed();
     }
 
-    public static void planTask(RunnableWithException task, OnErrorListener onErrorListener, int intervalMs, int maxRetries, TaskFailedListener taskFailedListener) {
-        boolean success = false;
-        boolean limitedRetries=true;
-        if(maxRetries==0)
-            limitedRetries=false;
-        while(success==false) {
+    private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+    private ScheduledFuture scheduledFuture = null;
+    private int numTries = 0;
+
+    public void planTask(RunnableWithException task, OnDoneListener onDoneListener, OnErrorListener onErrorListener, int intervalMs, int maxRetries, TaskFailedListener taskFailedListener) {
+        if (scheduledFuture != null)
+            throw new IllegalStateException("Task already started");
+        int finalMaxRetries = maxRetries;
+        scheduledFuture = scheduledExecutorService.scheduleWithFixedDelay(() -> {
             try {
-                task.run();
-                break;
+                if (finalMaxRetries > 0 && numTries >= finalMaxRetries) {
+                    taskFailedListener.taskFailed();
+                    cancelTask();
+                } else {
+                    numTries += 1;
+                    task.run();
+                    cancelTask();
+                    onDoneListener.onDone();
+                }
             } catch (Exception e) {
                 onErrorListener.onError(e);
             }
-            try {
-                Thread.sleep(intervalMs);
-            } catch (InterruptedException e) {
-                onErrorListener.onError(e);
-                break;
-            }
-            maxRetries--;
-            if(limitedRetries && maxRetries<=0) {
-                taskFailedListener.taskFailed();
-                break;
-            }
+        }, 0, intervalMs, TimeUnit.MILLISECONDS);
+    }
+
+    private void cancelTask() {
+        if (scheduledFuture != null) {
+            scheduledFuture.cancel(false);
         }
     }
 
-    public static void planTask(RunnableWithException task, OnErrorListener onErrorListener, int intervalMs, int maxRetries) {
-        planTask(task, onErrorListener, intervalMs, maxRetries, ()->{});
+    public void planTask(RunnableWithException task, OnDoneListener onDoneListener, OnErrorListener onErrorListener, int intervalMs, int maxRetries) {
+        planTask(task, onDoneListener, onErrorListener, intervalMs, maxRetries, ()->{});
     }
 
-    public static void planTask(RunnableWithException task, OnErrorListener onErrorListener, int intervalMs) {
-        planTask(task,onErrorListener,intervalMs,0);
+    public void planTask(RunnableWithException task, OnDoneListener onDoneListener, OnErrorListener onErrorListener, int intervalMs) {
+        planTask(task, onDoneListener, onErrorListener,intervalMs,0);
     }
 }
