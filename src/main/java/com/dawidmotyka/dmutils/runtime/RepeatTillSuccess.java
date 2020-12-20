@@ -10,26 +10,27 @@
 
 package com.dawidmotyka.dmutils.runtime;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * Created by dawid on 10/21/17.
  */
 public class RepeatTillSuccess {
     public interface RunnableWithException {
-        public void run() throws Exception;
+        void run() throws Exception;
     }
     public interface OnErrorListener {
-        public void onError(Exception t);
+         void onError(Exception t);
     }
     public interface TaskFailedListener {
-        public void taskFailed();
+        void taskFailed();
     }
 
     public static void planTask(RunnableWithException task, OnErrorListener onErrorListener, int intervalMs, int maxRetries, TaskFailedListener taskFailedListener) {
-        boolean success = false;
         boolean limitedRetries=true;
-        if(maxRetries==0)
+        if(maxRetries == 0)
             limitedRetries=false;
-        while(success==false) {
+        while(true) {
             try {
                 task.run();
                 break;
@@ -37,7 +38,7 @@ public class RepeatTillSuccess {
                 onErrorListener.onError(e);
             }
             try {
-                Thread.sleep(intervalMs);
+                TimeUnit.MILLISECONDS.sleep(intervalMs);
             } catch (InterruptedException e) {
                 onErrorListener.onError(e);
                 break;
