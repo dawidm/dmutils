@@ -10,72 +10,51 @@
 
 package com.dawidmotyka.dmutils.runtime;
 
-import java.util.Set;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-
 /**
  * Created by dawid on 10/21/17.
  */
 public class RepeatTillSuccess {
-    
     public interface RunnableWithException {
-        void run() throws Exception;
+        public void run() throws Exception;
     }
     public interface OnErrorListener {
-        void onError(Exception t);
-    }
-    public interface OnDoneListener {
-        void onDone();
+        public void onError(Exception t);
     }
     public interface TaskFailedListener {
-        void taskFailed();
+        public void taskFailed();
     }
 
-    private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-    private ScheduledFuture<?> scheduledFuture = null;
-    private int numTries = 0;
-
-    public void planTask(RunnableWithException task, OnDoneListener onDoneListener, OnErrorListener onErrorListener, int intervalMs, int maxRetries, TaskFailedListener taskFailedListener) {
-        planTask(task, onDoneListener, onErrorListener, intervalMs, maxRetries, taskFailedListener, null);
-    }
-
-    // notCountExceptions - when these exception types occurs running the task, this is not counted for retry limit
-    public void planTask(RunnableWithException task, OnDoneListener onDoneListener, OnErrorListener onErrorListener, int intervalMs, int maxRetries, TaskFailedListener taskFailedListener, Set<Class<? extends Exception>> notCountExceptions) {
-        if (scheduledFuture != null)
-            throw new IllegalStateException("Task already started");
-        scheduledFuture = scheduledExecutorService.scheduleWithFixedDelay(() -> {
+    public static void planTask(RunnableWithException task, OnErrorListener onErrorListener, int intervalMs, int maxRetries, TaskFailedListener taskFailedListener) {
+        boolean success = false;
+        boolean limitedRetries=true;
+        if(maxRetries==0)
+            limitedRetries=false;
+        while(success==false) {
             try {
-                if (maxRetries > 0 && numTries >= maxRetries) {
-                    taskFailedListener.taskFailed();
-                    cancelTask();
-                } else {
-                    numTries += 1;
-                    task.run();
-                    cancelTask();
-                    onDoneListener.onDone();
-                }
+                task.run();
+                break;
             } catch (Exception e) {
                 onErrorListener.onError(e);
-                if (notCountExceptions != null && notCountExceptions.contains(e.getClass()))
-                    numTries -= 1;
             }
-        }, 0, intervalMs, TimeUnit.MILLISECONDS);
-    }
-
-    private void cancelTask() {
-        if (scheduledFuture != null) {
-            scheduledFuture.cancel(false);
+            try {
+                Thread.sleep(intervalMs);
+            } catch (InterruptedException e) {
+                onErrorListener.onError(e);
+                break;
+            }
+            maxRetries--;
+            if(limitedRetries && maxRetries<=0) {
+                taskFailedListener.taskFailed();
+                break;
+            }
         }
     }
 
-    public void planTask(RunnableWithException task, OnDoneListener onDoneListener, OnErrorListener onErrorListener, int intervalMs, int maxRetries) {
-        planTask(task, onDoneListener, onErrorListener, intervalMs, maxRetries, ()->{});
+    public static void planTask(RunnableWithException task, OnErrorListener onErrorListener, int intervalMs, int maxRetries) {
+        planTask(task, onErrorListener, intervalMs, maxRetries, ()->{});
     }
 
-    public void planTask(RunnableWithException task, OnDoneListener onDoneListener, OnErrorListener onErrorListener, int intervalMs) {
-        planTask(task, onDoneListener, onErrorListener,intervalMs,0);
+    public static void planTask(RunnableWithException task, OnErrorListener onErrorListener, int intervalMs) {
+        planTask(task,onErrorListener,intervalMs,0);
     }
 }
