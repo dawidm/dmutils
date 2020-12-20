@@ -10,6 +10,7 @@
 
 package com.dawidmotyka.dmutils.runtime;
 
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -26,7 +27,8 @@ public class RepeatTillSuccess {
         void taskFailed();
     }
 
-    public static void planTask(RunnableWithException task, OnErrorListener onErrorListener, int intervalMs, int maxRetries, TaskFailedListener taskFailedListener) {
+    // retryExceptionFilters - if exception from the list occur when executing task, this is not counted to max retries limit
+    public static void planTask(RunnableWithException task, OnErrorListener onErrorListener, int intervalMs, int maxRetries, TaskFailedListener taskFailedListener, Set<Class<? extends Exception>> retryExceptionFilters) {
         boolean limitedRetries=true;
         if(maxRetries == 0)
             limitedRetries=false;
@@ -36,6 +38,8 @@ public class RepeatTillSuccess {
                 break;
             } catch (Exception e) {
                 onErrorListener.onError(e);
+                if (retryExceptionFilters != null && retryExceptionFilters.contains(e.getClass()))
+                    maxRetries++;
             }
             try {
                 TimeUnit.MILLISECONDS.sleep(intervalMs);
@@ -49,6 +53,10 @@ public class RepeatTillSuccess {
                 break;
             }
         }
+    }
+
+    public static void planTask(RunnableWithException task, OnErrorListener onErrorListener, int intervalMs, int maxRetries, TaskFailedListener taskFailedListener) {
+        planTask(task, onErrorListener, intervalMs, maxRetries, ()->{}, null);
     }
 
     public static void planTask(RunnableWithException task, OnErrorListener onErrorListener, int intervalMs, int maxRetries) {
